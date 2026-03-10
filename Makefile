@@ -1,10 +1,12 @@
+PYTHON ?= .venv/bin/python
+
 .PHONY: clean build publish commit release
 
 clean:
 	rm -rf dist/ build/ *.egg-info django_drf_mcp.egg-info
 
 build: clean
-	python -m build
+	$(PYTHON) -m build
 
 publish: build
 	twine upload dist/*
