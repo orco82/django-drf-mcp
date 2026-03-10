@@ -1,5 +1,7 @@
 import json
+import re
 from fnmatch import fnmatch
+from pathlib import Path
 
 import httpx
 from django.conf import settings
@@ -50,6 +52,23 @@ def generate_openapi_schema() -> dict:
     schema = generator.get_schema(request=None, public=True)
     # drf-spectacular returns an OrderedDict; FastMCP needs a plain dict
     return json.loads(json.dumps(schema))
+
+
+def _get_project_version() -> str | None:
+    """Try to read version from the project's pyproject.toml."""
+    try:
+        pyproject = Path(settings.BASE_DIR) / "pyproject.toml"
+        if pyproject.exists():
+            match = re.search(
+                r'^version\s*=\s*["\']([^"\']+)["\']',
+                pyproject.read_text(),
+                re.MULTILINE,
+            )
+            if match:
+                return match.group(1)
+    except Exception:
+        pass
+    return None
 
 
 def _matches_any(method: str, path: str, patterns: list[str]) -> bool:
@@ -141,7 +160,7 @@ async def setup_docs(
 
     docs_config = FastMCPDocsConfig(
         title=cfg["MCP_DOCS_TITLE"] or cfg["NAME"],
-        version=cfg["MCP_DOCS_VERSION"] or info.get("version", "1.0.0"),
+        version=cfg["MCP_DOCS_VERSION"] or _get_project_version() or info.get("version", "1.0.0"),
         description=cfg["MCP_DOCS_DESCRIPTION"] or info.get("description", f"MCP tools documentation for {cfg['NAME']}"),
         base_url=cfg["BASE_URL"],
         docs_links=cfg["MCP_DOCS_LINKS"],
