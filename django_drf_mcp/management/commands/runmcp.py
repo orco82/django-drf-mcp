@@ -34,7 +34,7 @@ class Command(BaseCommand):
         port = options["port"]
         base_url = options["base_url"]
 
-        from django_mcp.server import create_mcp_server
+        from django_drf_mcp.server import create_mcp_server
 
         kwargs = {}
         if base_url:

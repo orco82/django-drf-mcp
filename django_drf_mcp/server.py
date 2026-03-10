@@ -11,7 +11,7 @@ def get_config() -> dict:
     """Return django-mcp configuration with defaults."""
     defaults = {
         # Server
-        "NAME": "django-mcp",
+        "NAME": "django-drf-mcp",
         "BASE_URL": "http://localhost:8000",
         "MCP_PATH": "/mcp/",
         # MCP Docs (fastmcp-docs)

@@ -4,7 +4,7 @@ Add [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) to any Djan
 
 ## Features
 
-- **Zero config** — add `"django_mcp"` to `INSTALLED_APPS`, include the URLs, done
+- **Zero config** — add `"django_drf_mcp"` to `INSTALLED_APPS`, include the URLs, done
 - **Auto-discovery** — every DRF ViewSet/APIView becomes an MCP tool automatically
 - **Multiple transports** — STDIO, SSE, Streamable HTTP, or embedded Django view
 - **Authentication** — pass auth headers (Token, JWT, Basic, API key) to MCP tool calls via `HEADERS` setting
@@ -38,7 +38,7 @@ pip install django-drf-mcp
 INSTALLED_APPS = [
     ...
     "rest_framework",
-    "django_mcp",
+    "django_drf_mcp",
 ]
 ```
 
@@ -52,7 +52,7 @@ from django.urls import path, include
 
 urlpatterns = [
     ...
-    path("", include("django_mcp.urls")),
+    path("", include("django_drf_mcp.urls")),
 ]
 ```
 
@@ -70,7 +70,7 @@ import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "myproject.settings")
 django.setup()
 
-from django_mcp.asgi import get_asgi_application
+from django_drf_mcp.asgi import get_asgi_application
 
 application = get_asgi_application()
 ```
@@ -237,7 +237,7 @@ All configuration is optional. Add a `DJANGO_MCP` dict to your `settings.py`:
 ```python
 DJANGO_MCP = {
     # --- Server ---
-    "NAME": "django-mcp",                  # MCP server name
+    "NAME": "django-drf-mcp",              # MCP server name
     "BASE_URL": "http://localhost:8000",    # Django server URL
     "MCP_PATH": "/mcp/",                   # MCP endpoint path
 
@@ -265,7 +265,7 @@ DJANGO_MCP = {
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `NAME` | `str` | `"django-mcp"` | MCP server name, shown in health check and docs |
+| `NAME` | `str` | `"django-drf-mcp"` | MCP server name, shown in health check and docs |
 | `BASE_URL` | `str` | `"http://localhost:8000"` | URL of the running Django server. Used as the base URL for proxying MCP tool calls and injected into the OpenAPI schema `servers` list |
 | `MCP_PATH` | `str` | `"/mcp/"` | Path where the MCP endpoint is mounted |
 | `HEADERS` | `dict` | `{}` | HTTP headers sent with every MCP tool call (e.g. `{"Authorization": "Token ..."}`) |
@@ -424,7 +424,7 @@ DJANGO_MCP = {
 
 ## How It Works
 
-1. `django_mcp` auto-injects `drf-spectacular` into `INSTALLED_APPS` and configures `DEFAULT_SCHEMA_CLASS`
+1. `django_drf_mcp` auto-injects `drf-spectacular` into `INSTALLED_APPS` and configures `DEFAULT_SCHEMA_CLASS`
 2. On startup, it generates an OpenAPI schema from all registered DRF views
 3. The base URL is injected into the OpenAPI schema `servers` list
 4. FastMCP converts each API endpoint into an MCP tool via `OpenAPIProvider`

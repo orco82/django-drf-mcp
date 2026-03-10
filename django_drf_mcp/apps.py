@@ -7,7 +7,7 @@ from django.template.utils import get_app_template_dirs
 
 
 class DjangoMcpConfig(AppConfig):
-    name = "django_mcp"
+    name = "django_drf_mcp"
     verbose_name = "Django MCP"
 
     def ready(self):

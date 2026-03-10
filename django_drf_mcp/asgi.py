@@ -6,7 +6,7 @@ FastMCP docs Starlette app under a single ASGI entry point.
 
 Usage in your project's asgi.py:
 
-    from django_mcp.asgi import get_asgi_application
+    from django_drf_mcp.asgi import get_asgi_application
     application = get_asgi_application()
 
 Routes (when MCP_DOCS_ENABLED=True):

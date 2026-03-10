@@ -16,7 +16,7 @@ class _SwaggerView(SpectacularSwaggerView):
 _config = get_config()
 
 urlpatterns = [
-    path(_config["MCP_PATH"].strip("/") + "/", McpView.as_view(), name="django-mcp"),
+    path(_config["MCP_PATH"].strip("/") + "/", McpView.as_view(), name="django-drf-mcp"),
 ]
 
 if _config["SWAGGER_ENABLED"]:
