@@ -3,7 +3,6 @@ import importlib
 from django.apps import AppConfig
 from django.conf import settings
 from django.template import engines
-from django.template.utils import get_app_template_dirs
 
 
 class DjangoMcpConfig(AppConfig):

@@ -1,4 +1,5 @@
 import json
+from fnmatch import fnmatch
 
 import httpx
 from django.conf import settings
@@ -25,6 +26,9 @@ def get_config() -> dict:
         "MCP_DOCS_VERBOSE": True,
         # Authentication
         "HEADERS": {},
+        # Endpoint filtering
+        "INCLUDE": [],
+        "EXCLUDE": [],
         # DRF Swagger / Schema
         "SWAGGER_ENABLED": False,
         "SCHEMA_PATH": "/api/schema/",
@@ -48,6 +52,40 @@ def generate_openapi_schema() -> dict:
     return json.loads(json.dumps(schema))
 
 
+def _matches_any(method: str, path: str, patterns: list[str]) -> bool:
+    """Check if METHOD:PATH matches any of the given glob patterns."""
+    key = f"{method.upper()}:{path}"
+    return any(fnmatch(key, pat) for pat in patterns)
+
+
+def _filter_schema_paths(schema: dict, include: list[str], exclude: list[str]) -> dict:
+    """Filter OpenAPI schema paths by INCLUDE/EXCLUDE glob patterns.
+
+    Patterns use the format "METHOD:PATH" (e.g. "GET:/api/*", "DELETE:*").
+    If include is non-empty, only matching method+path combos are kept.
+    Then exclude patterns remove from the remaining set.
+    """
+    http_methods = {"get", "post", "put", "patch", "delete"}
+    filtered_paths = {}
+
+    for path, path_item in schema.get("paths", {}).items():
+        filtered_methods = {}
+        for method, operation in path_item.items():
+            if method not in http_methods:
+                filtered_methods[method] = operation
+                continue
+            if include and not _matches_any(method, path, include):
+                continue
+            if exclude and _matches_any(method, path, exclude):
+                continue
+            filtered_methods[method] = operation
+        if any(m in filtered_methods for m in http_methods):
+            filtered_paths[path] = filtered_methods
+
+    schema["paths"] = filtered_paths
+    return schema
+
+
 def create_mcp_server(base_url: str | None = None, name: str | None = None) -> FastMCP:
     """Create an MCP server from the DRF OpenAPI schema.
 
@@ -60,6 +98,12 @@ def create_mcp_server(base_url: str | None = None, name: str | None = None) -> F
     name = name or config["NAME"]
 
     schema = generate_openapi_schema()
+
+    # Filter endpoints by INCLUDE/EXCLUDE patterns
+    include = config.get("INCLUDE", [])
+    exclude = config.get("EXCLUDE", [])
+    if include or exclude:
+        schema = _filter_schema_paths(schema, include, exclude)
 
     # Add server URL to schema so OpenAPIProvider knows where to send requests
     schema.setdefault("servers", [])

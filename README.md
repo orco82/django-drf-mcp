@@ -6,6 +6,7 @@ Add [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) to any Djan
 
 - **Zero config** — add `"django_drf_mcp"` to `INSTALLED_APPS`, include the URLs, done
 - **Auto-discovery** — every DRF ViewSet/APIView becomes an MCP tool automatically
+- **Endpoint filtering** — include or exclude specific endpoints with `METHOD:PATH` glob patterns
 - **Multiple transports** — STDIO, SSE, Streamable HTTP, or embedded Django view
 - **Authentication** — pass auth headers (Token, JWT, Basic, API key) to MCP tool calls via `HEADERS` setting
 - **DRF-integrated MCP view** — the `/mcp/` endpoint is a DRF `APIView`, inheriting authentication and permissions from `REST_FRAMEWORK` settings
@@ -241,6 +242,10 @@ DJANGO_MCP = {
     "BASE_URL": "http://localhost:8000",    # Django server URL
     "MCP_PATH": "/mcp/",                   # MCP endpoint path
 
+    # --- Endpoint Filtering ---
+    "INCLUDE": [],                          # Only expose matching METHOD:PATH patterns
+    "EXCLUDE": [],                          # Remove matching METHOD:PATH patterns
+
     # --- Authentication ---
     "HEADERS": {},                          # HTTP headers sent with every MCP tool call
 
@@ -268,6 +273,8 @@ DJANGO_MCP = {
 | `NAME` | `str` | `"django-drf-mcp"` | MCP server name, shown in health check and docs |
 | `BASE_URL` | `str` | `"http://localhost:8000"` | URL of the running Django server. Used as the base URL for proxying MCP tool calls and injected into the OpenAPI schema `servers` list |
 | `MCP_PATH` | `str` | `"/mcp/"` | Path where the MCP endpoint is mounted |
+| `INCLUDE` | `list` | `[]` | Only expose endpoints matching these `METHOD:PATH` glob patterns. Empty = include all |
+| `EXCLUDE` | `list` | `[]` | Remove endpoints matching these `METHOD:PATH` glob patterns. Applied after `INCLUDE` |
 | `HEADERS` | `dict` | `{}` | HTTP headers sent with every MCP tool call (e.g. `{"Authorization": "Token ..."}`) |
 | `MCP_DOCS_ENABLED` | `bool` | `True` | Enable the MCP Docs UI (Starlette-based, requires ASGI) |
 | `MCP_DOCS_TITLE` | `str\|None` | `None` | Docs page title. Falls back to `NAME` |
@@ -314,6 +321,37 @@ DJANGO_MCP = {
     "MCP_DOCS_ENABLED": False,
 }
 ```
+
+## Endpoint Filtering
+
+Control which DRF endpoints are exposed as MCP tools using `INCLUDE` and `EXCLUDE` patterns.
+
+Patterns use the format `"METHOD:PATH"` with glob-style wildcards (`*`):
+
+```python
+# Only expose GET endpoints under /api/
+DJANGO_MCP = {
+    "INCLUDE": ["GET:/api/*"],
+}
+
+# Expose everything except DELETE operations
+DJANGO_MCP = {
+    "EXCLUDE": ["DELETE:*"],
+}
+
+# Expose /api/ endpoints, but exclude DELETE on users
+DJANGO_MCP = {
+    "INCLUDE": ["*:/api/*"],
+    "EXCLUDE": ["DELETE:/api/users/*"],
+}
+```
+
+- `METHOD` — HTTP method (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) or `*` for any method
+- `PATH` — URL path with `*` wildcard (e.g. `/api/*`, `/api/users/{id}/`)
+- Method matching is case-insensitive
+- If `INCLUDE` is empty (default), all endpoints are included
+- If `EXCLUDE` is empty (default), nothing is excluded
+- When both are set, `INCLUDE` is applied first, then `EXCLUDE` removes from the result
 
 ## Authentication
 
