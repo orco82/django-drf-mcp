@@ -1,4 +1,4 @@
-# django-mcp
+# django-drf-mcp
 
 Add [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) to any Django REST Framework project. Auto-discovers all DRF endpoints and exposes them as MCP tools — zero boilerplate.
 
@@ -17,7 +17,7 @@ Add [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) to any Djan
 ## Installation
 
 ```bash
-pip install django-mcp
+pip install django-drf-mcp
 ```
 
 ### Dependencies (installed automatically)

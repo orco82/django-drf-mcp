@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "django-mcp"
+name = "django-drf-mcp"
 version = "0.1.0"
 description = "Add MCP (Model Context Protocol) to any Django REST Framework project"
 readme = "README.md"
