@@ -25,9 +25,9 @@ pip install django-drf-mcp
 
 - Django >= 4.0
 - Django REST Framework
-- drf-spectacular
-- FastMCP >= 2.0.0
-- fastmcp-docs
+- [drf-spectacular](https://github.com/tfranzel/drf-spectacular)
+- [FastMCP](https://github.com/jlowin/fastmcp) >= 2.0.0
+- [fastmcp-docs](https://github.com/orco82/fastmcp-docs)
 - httpx
 
 ## Quick Start
