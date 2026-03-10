@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-mcp"
+version = "0.1.0"
+description = "Add MCP (Model Context Protocol) to any Django REST Framework project"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    {name = "Or Cohen", email = "orco82@gmail.com"},
+]
+keywords = ["django", "mcp", "model-context-protocol", "drf", "fastmcp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Django",
+    "Framework :: Django :: 4.0",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 6.0",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "django>=4.0",
+    "djangorestframework",
+    "drf-spectacular",
+    "fastmcp>=2.0.0",
+    "fastmcp-docs",
+    "httpx",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-django",
+]
+
+[tool.setuptools.packages.find]
+include = ["django_mcp*"]

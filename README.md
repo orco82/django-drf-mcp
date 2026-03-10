@@ -1,0 +1,452 @@
+# django-mcp
+
+Add [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) to any Django REST Framework project. Auto-discovers all DRF endpoints and exposes them as MCP tools — zero boilerplate.
+
+## Features
+
+- **Zero config** — add `"django_mcp"` to `INSTALLED_APPS`, include the URLs, done
+- **Auto-discovery** — every DRF ViewSet/APIView becomes an MCP tool automatically
+- **Multiple transports** — STDIO, SSE, Streamable HTTP, or embedded Django view
+- **Authentication** — pass auth headers (Token, JWT, Basic, API key) to MCP tool calls via `HEADERS` setting
+- **DRF-integrated MCP view** — the `/mcp/` endpoint is a DRF `APIView`, inheriting authentication and permissions from `REST_FRAMEWORK` settings
+- **MCP Docs UI** — interactive Swagger-style docs for your MCP tools at `/mcp/docs`
+- **DRF Swagger UI** — optional built-in Swagger UI and OpenAPI schema endpoints
+- **Fully configurable** — control every feature via a single `DJANGO_MCP` settings dict
+- **Auto-configures drf-spectacular** — no manual setup needed
+
+## Installation
+
+```bash
+pip install django-mcp
+```
+
+### Dependencies (installed automatically)
+
+- Django >= 4.0
+- Django REST Framework
+- drf-spectacular
+- FastMCP >= 2.0.0
+- fastmcp-docs
+- httpx
+
+## Quick Start
+
+### 1. Add to INSTALLED_APPS
+
+```python
+# settings.py
+INSTALLED_APPS = [
+    ...
+    "rest_framework",
+    "django_mcp",
+]
+```
+
+> `drf-spectacular` is auto-injected — you don't need to add it yourself.
+
+### 2. Include URLs
+
+```python
+# urls.py
+from django.urls import path, include
+
+urlpatterns = [
+    ...
+    path("", include("django_mcp.urls")),
+]
+```
+
+That's it. The MCP endpoint is now live at `/mcp/`.
+
+### 3. Enable MCP Docs UI (requires ASGI)
+
+For interactive documentation of your MCP tools, replace your `asgi.py`:
+
+```python
+# asgi.py
+import os
+import django
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "myproject.settings")
+django.setup()
+
+from django_mcp.asgi import get_asgi_application
+
+application = get_asgi_application()
+```
+
+Run with an ASGI server:
+
+```bash
+uvicorn myproject.asgi:application --host 0.0.0.0 --port 8000
+```
+
+MCP Docs will be available at `/mcp/docs`.
+
+## Transports
+
+### STDIO (Claude Code / Claude Desktop)
+
+```bash
+python manage.py runmcp --transport stdio
+```
+
+### SSE
+
+```bash
+python manage.py runmcp --transport sse --host 0.0.0.0 --port 8001
+```
+
+### Streamable HTTP
+
+```bash
+python manage.py runmcp --transport streamable-http --host 0.0.0.0 --port 8001
+```
+
+### Embedded Django View
+
+The MCP protocol is also served at `/mcp/` as a DRF `APIView` — no separate process needed. Supports `GET` (health check) and `POST` (JSON-RPC). Inherits authentication and permission classes from `REST_FRAMEWORK` settings.
+
+## MCP Client Configuration
+
+### STDIO
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "command": "python",
+      "args": ["manage.py", "runmcp", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+With a remote Django server:
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "command": "python",
+      "args": ["manage.py", "runmcp", "--transport", "stdio", "--base-url", "https://my-app.example.com"]
+    }
+  }
+}
+```
+
+### Streamable HTTP — Embedded (same port as Django)
+
+The `/mcp/` Django view serves MCP on the same port as your app (e.g. 8000):
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "type": "streamable-http",
+      "url": "http://localhost:8000/mcp/"
+    }
+  }
+}
+```
+
+With authentication:
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "type": "streamable-http",
+      "url": "http://localhost:8000/mcp/",
+      "headers": {
+        "Authorization": "Token abc123..."
+      }
+    }
+  }
+}
+```
+
+### Streamable HTTP — Standalone (separate port)
+
+`runmcp --transport streamable-http` starts a standalone FastMCP server (e.g. port 8001) that proxies tool calls to Django on port 8000:
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "type": "streamable-http",
+      "url": "http://localhost:8001/mcp"
+    }
+  }
+}
+```
+
+With authentication:
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "type": "streamable-http",
+      "url": "http://localhost:8001/mcp",
+      "headers": {
+        "Authorization": "Token abc123..."
+      }
+    }
+  }
+}
+```
+
+### SSE — Standalone (separate port)
+
+`runmcp --transport sse` starts a standalone FastMCP server (e.g. port 8001) that proxies tool calls to Django on port 8000:
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "type": "sse",
+      "url": "http://localhost:8001/sse"
+    }
+  }
+}
+```
+
+With authentication:
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "type": "sse",
+      "url": "http://localhost:8001/sse",
+      "headers": {
+        "Authorization": "Token abc123..."
+      }
+    }
+  }
+}
+```
+
+> **Note:** The client `headers` authenticate the MCP client to the MCP endpoint. The server-side `DJANGO_MCP["HEADERS"]` setting (see [Authentication](#authentication)) authenticates MCP tool calls to the Django API. When using DRF authentication, configure **both** for full security.
+
+## Settings
+
+All configuration is optional. Add a `DJANGO_MCP` dict to your `settings.py`:
+
+```python
+DJANGO_MCP = {
+    # --- Server ---
+    "NAME": "django-mcp",                  # MCP server name
+    "BASE_URL": "http://localhost:8000",    # Django server URL
+    "MCP_PATH": "/mcp/",                   # MCP endpoint path
+
+    # --- Authentication ---
+    "HEADERS": {},                          # HTTP headers sent with every MCP tool call
+
+    # --- MCP Docs UI ---
+    "MCP_DOCS_ENABLED": True,              # Enable/disable /mcp/docs
+    "MCP_DOCS_TITLE": None,                # Docs page title (defaults to NAME)
+    "MCP_DOCS_DESCRIPTION": None,          # Docs description (defaults to OpenAPI description)
+    "MCP_DOCS_VERSION": None,              # Docs version (defaults to OpenAPI version)
+    "MCP_DOCS_EMOJI": None,                # Emoji shown before the title
+    "MCP_DOCS_LINKS": [],                  # Extra links: [{"text": "...", "url": "..."}]
+    "MCP_DOCS_ENABLE_CORS": True,          # Enable CORS on docs routes
+    "MCP_DOCS_VERBOSE": True,              # Show tools load during server startup
+
+    # --- DRF Swagger / Schema ---
+    "SWAGGER_ENABLED": False,              # Enable Swagger UI + OpenAPI schema endpoints
+    "SCHEMA_PATH": "/api/schema/",         # Schema endpoint path
+    "SWAGGER_PATH": "/api/docs/",          # Swagger UI path
+}
+```
+
+### Settings Reference
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `NAME` | `str` | `"django-mcp"` | MCP server name, shown in health check and docs |
+| `BASE_URL` | `str` | `"http://localhost:8000"` | URL of the running Django server. Used as the base URL for proxying MCP tool calls and injected into the OpenAPI schema `servers` list |
+| `MCP_PATH` | `str` | `"/mcp/"` | Path where the MCP endpoint is mounted |
+| `HEADERS` | `dict` | `{}` | HTTP headers sent with every MCP tool call (e.g. `{"Authorization": "Token ..."}`) |
+| `MCP_DOCS_ENABLED` | `bool` | `True` | Enable the MCP Docs UI (Starlette-based, requires ASGI) |
+| `MCP_DOCS_TITLE` | `str\|None` | `None` | Docs page title. Falls back to `NAME` |
+| `MCP_DOCS_DESCRIPTION` | `str\|None` | `None` | Docs description. Falls back to the OpenAPI schema description |
+| `MCP_DOCS_VERSION` | `str\|None` | `None` | Docs version string. Falls back to the OpenAPI schema version |
+| `MCP_DOCS_EMOJI` | `str\|None` | `None` | Emoji displayed before the docs title |
+| `MCP_DOCS_LINKS` | `list` | `[]` | Extra links shown in docs. Each item: `{"text": "...", "url": "..."}` |
+| `MCP_DOCS_ENABLE_CORS` | `bool` | `True` | Enable CORS on the MCP Docs routes |
+| `MCP_DOCS_VERBOSE` | `bool` | `True` | Show tools load during server startup |
+| `SWAGGER_ENABLED` | `bool` | `False` | Enable the DRF Swagger UI and OpenAPI schema endpoints |
+| `SCHEMA_PATH` | `str` | `"/api/schema/"` | Path for the OpenAPI schema endpoint |
+| `SWAGGER_PATH` | `str` | `"/api/docs/"` | Path for the Swagger UI endpoint |
+
+### Example: Full Configuration
+
+```python
+DJANGO_MCP = {
+    "NAME": "products-api",
+    "BASE_URL": "http://localhost:8000",
+    "MCP_PATH": "/mcp/",
+    "HEADERS": {
+        "Authorization": "Token abc123...",
+    },
+    "MCP_DOCS_ENABLED": True,
+    "MCP_DOCS_TITLE": "Products MCP Tools",
+    "MCP_DOCS_DESCRIPTION": "MCP tools for the Products API",
+    "MCP_DOCS_EMOJI": "\U0001f6d2",
+    "MCP_DOCS_LINKS": [
+        {"text": "Admin", "url": "/admin/"},
+        {"text": "GitHub", "url": "https://github.com/myorg/myrepo"},
+    ],
+    "MCP_DOCS_ENABLE_CORS": True,
+    "MCP_DOCS_VERBOSE": False,
+    "SWAGGER_ENABLED": True,
+}
+```
+
+### Example: Minimal (disable docs)
+
+```python
+DJANGO_MCP = {
+    "NAME": "my-api",
+    "BASE_URL": "https://my-api.example.com",
+    "MCP_DOCS_ENABLED": False,
+}
+```
+
+## Authentication
+
+If your DRF endpoints require authentication, there are two layers to configure:
+
+### 1. Server-side: MCP tool calls to the Django API
+
+Configure the `HEADERS` setting so MCP tool HTTP calls include credentials:
+
+```python
+# DRF TokenAuthentication
+DJANGO_MCP = {
+    "HEADERS": {
+        "Authorization": "Token abc123...",
+    },
+}
+
+# JWT (e.g. SimpleJWT)
+DJANGO_MCP = {
+    "HEADERS": {
+        "Authorization": "Bearer eyJ...",
+    },
+}
+
+# Basic Auth
+DJANGO_MCP = {
+    "HEADERS": {
+        "Authorization": "Basic dXNlcjpwYXNz",
+    },
+}
+
+# Custom API key header
+DJANGO_MCP = {
+    "HEADERS": {
+        "X-API-Key": "my-secret-key",
+    },
+}
+```
+
+These headers are passed to the underlying `httpx.AsyncClient` and included in every HTTP request made by MCP tools to your Django API.
+
+### 2. Client-side: MCP client to the `/mcp/` endpoint
+
+The embedded `/mcp/` view is a DRF `APIView` and inherits `DEFAULT_AUTHENTICATION_CLASSES` and `DEFAULT_PERMISSION_CLASSES` from `REST_FRAMEWORK` settings. If your DRF config requires authentication globally, MCP clients must also send auth headers:
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "type": "streamable-http",
+      "url": "http://localhost:8000/mcp/",
+      "headers": {
+        "Authorization": "Token abc123..."
+      }
+    }
+  }
+}
+```
+
+### Full authentication example
+
+```python
+# settings.py
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
+
+DJANGO_MCP = {
+    "NAME": "my-api",
+    "HEADERS": {
+        "Authorization": "Token abc123...",
+    },
+}
+```
+
+```json
+// .mcp.json (MCP client)
+{
+  "mcpServers": {
+    "my-api": {
+      "type": "streamable-http",
+      "url": "http://localhost:8000/mcp/",
+      "headers": {
+        "Authorization": "Token abc123..."
+      }
+    }
+  }
+}
+```
+
+## Endpoints
+
+| Path | Description | Controlled by |
+|---|---|---|
+| `/mcp/` | MCP protocol endpoint (JSON-RPC) | `MCP_PATH` |
+| `/mcp/docs` | MCP Docs UI | `MCP_DOCS_ENABLED` |
+| `/mcp/openapi.json` | MCP OpenAPI schema | `MCP_DOCS_ENABLED` |
+| `/mcp/api/tools` | MCP tools JSON API (list) | `MCP_DOCS_ENABLED` |
+| `/mcp/api/tools/{tool_name}` | MCP tool detail JSON API | `MCP_DOCS_ENABLED` |
+| `/mcp/favicon` | MCP Docs favicon | `MCP_DOCS_ENABLED` |
+| `/api/schema/` | DRF OpenAPI schema (YAML) | `SWAGGER_ENABLED` |
+| `/api/docs/` | DRF Swagger UI | `SWAGGER_ENABLED` |
+
+## How It Works
+
+1. `django_mcp` auto-injects `drf-spectacular` into `INSTALLED_APPS` and configures `DEFAULT_SCHEMA_CLASS`
+2. On startup, it generates an OpenAPI schema from all registered DRF views
+3. The base URL is injected into the OpenAPI schema `servers` list
+4. FastMCP converts each API endpoint into an MCP tool via `OpenAPIProvider`
+5. An `httpx.AsyncClient` is created with the configured `BASE_URL` and `HEADERS` for proxying tool calls
+6. Tools are served via STDIO, SSE, Streamable HTTP, or the embedded Django view
+7. When running under ASGI, `fastmcp-docs` provides interactive documentation at `/mcp/docs`
+
+## Management Command
+
+```
+python manage.py runmcp [options]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--transport` | `stdio` | Transport type: `stdio`, `sse`, `streamable-http` |
+| `--host` | `0.0.0.0` | Bind host (for `sse` / `streamable-http`) |
+| `--port` | `8001` | Bind port (for `sse` / `streamable-http`) |
+| `--base-url` | from settings | Override `BASE_URL` for proxying API calls |
+
+## Requirements
+
+- Python >= 3.10
+- Django >= 4.0
+- Django REST Framework
