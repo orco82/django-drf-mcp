@@ -12,6 +12,8 @@ class McpView(APIView):
     Inherits authentication and permissions from REST_FRAMEWORK settings.
     """
 
+    schema = None  # Exclude from drf-spectacular schema generation
+
     def get(self, request):
         """Health check / info endpoint."""
         from .server import get_config
