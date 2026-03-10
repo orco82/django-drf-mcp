@@ -9,7 +9,7 @@ build: clean
 	$(PYTHON) -m build
 
 publish: build
-	twine upload dist/*
+	$(PYTHON) -m twine upload dist/*
 
 commit:
 	git add -A

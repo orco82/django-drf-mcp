@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-drf-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "Add MCP (Model Context Protocol) to any Django REST Framework project"
 readme = "README.md"
 license = "MIT"
