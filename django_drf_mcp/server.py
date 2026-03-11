@@ -28,6 +28,7 @@ def get_config() -> dict:
         "MCP_DOCS_VERBOSE": True,
         # Authentication
         "HEADERS": {},
+        "INTERNAL_TOKEN": "",
         # Endpoint filtering
         "INCLUDE": [],
         "EXCLUDE": [],
@@ -129,9 +130,13 @@ def create_mcp_server(base_url: str | None = None, name: str | None = None) -> F
     if not schema["servers"]:
         schema["servers"].append({"url": base_url})
 
+    from .tokens import HEADER_NAME, get_token
+
+    headers = {**config.get("HEADERS", {}), HEADER_NAME: get_token()}
+
     client = httpx.AsyncClient(
         base_url=base_url,
-        headers=config.get("HEADERS", {}),
+        headers=headers,
         timeout=30.0,
     )
 

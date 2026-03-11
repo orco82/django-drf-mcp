@@ -248,6 +248,7 @@ DJANGO_MCP = {
 
     # --- Authentication ---
     "HEADERS": {},                          # HTTP headers sent with every MCP tool call
+    "INTERNAL_TOKEN": "",                   # Shared secret for MCP internal requests (optional)
 
     # --- MCP Docs UI ---
     "MCP_DOCS_ENABLED": True,              # Enable/disable /mcp/docs
@@ -276,6 +277,7 @@ DJANGO_MCP = {
 | `INCLUDE` | `list` | `[]` | Only expose endpoints matching these `METHOD:PATH` glob patterns. Empty = include all |
 | `EXCLUDE` | `list` | `[]` | Remove endpoints matching these `METHOD:PATH` glob patterns. Applied after `INCLUDE` |
 | `HEADERS` | `dict` | `{}` | HTTP headers sent with every MCP tool call (e.g. `{"Authorization": "Token ..."}`) |
+| `INTERNAL_TOKEN` | `str` | `""` | Shared secret for MCP internal requests. If empty, a per-process auto-generated token is used. Set this for multi-worker or standalone `runmcp` deployments |
 | `MCP_DOCS_ENABLED` | `bool` | `True` | Enable the MCP Docs UI (Starlette-based, requires ASGI) |
 | `MCP_DOCS_TITLE` | `str\|None` | `None` | Docs page title. Falls back to `NAME` |
 | `MCP_DOCS_DESCRIPTION` | `str\|None` | `None` | Docs description. Falls back to the OpenAPI schema description |
@@ -392,6 +394,44 @@ DJANGO_MCP = {
 ```
 
 These headers are passed to the underlying `httpx.AsyncClient` and included in every HTTP request made by MCP tools to your Django API.
+
+### SessionAuthentication & MCP Internal Requests
+
+`SessionAuthentication` uses cookies and CSRF tokens — neither of which the MCP internal proxy has. If your views use `SessionAuthentication`, MCP tool calls will get **403 Forbidden**.
+
+`django-drf-mcp` solves this with a built-in shared secret. The library automatically generates a per-process cryptographic token and injects it into every internal MCP proxy request via the `X-MCP-Internal-Token` header.
+
+To use this feature, you **must** add the `IsMCPInternalRequest` permission class to any view you want MCP tools to access. Without it, the token header is ignored and normal authentication applies.
+
+Add it to your views using the `|` (OR) operator:
+
+```python
+from rest_framework.permissions import IsAuthenticated
+from django_drf_mcp.permissions import IsMCPInternalRequest
+
+class MyViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated | IsMCPInternalRequest]
+```
+
+This means:
+- **Browser users** — must be authenticated via session (or any other auth method)
+- **MCP tool calls** — bypass session auth via the auto-injected secret token
+
+The token is 256-bit cryptographically random and regenerated on every server restart. External clients cannot guess it.
+
+#### Multi-worker & standalone `runmcp` deployments
+
+The auto-generated token is per-process. If the MCP proxy and your DRF views run in **different processes** (e.g., `runmcp` standalone mode, or gunicorn with multiple workers behind a load balancer), set a shared `INTERNAL_TOKEN`:
+
+```python
+DJANGO_MCP = {
+    "INTERNAL_TOKEN": "your-shared-secret-here",  # Use a strong random value
+}
+```
+
+When `INTERNAL_TOKEN` is set, it is used instead of the auto-generated per-process token. All workers and the `runmcp` process must share the same value.
+
+> **Tip:** Generate a strong token with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
 
 ### 2. Client-side: MCP client to the `/mcp/` endpoint
 
